@@ -12,17 +12,36 @@ export async function callPDFAPI(
     })
   }
 
-  const response = await fetch(`/api/${operation}`, {
-    method: "POST",
-    body: formData,
-  })
+  console.log("[v0] Calling API:", `/api/${operation}`)
+  console.log("[v0] File:", file.name, file.size, file.type)
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: response.statusText }))
-    throw new Error(error.error || `API error: ${response.statusText}`)
+  try {
+    const response = await fetch(`/api/${operation}`, {
+      method: "POST",
+      body: formData,
+    })
+
+    console.log("[v0] Response status:", response.status)
+    console.log("[v0] Response headers:", response.headers.get("content-type"))
+
+    if (!response.ok) {
+      let errorData
+      try {
+        errorData = await response.json()
+      } catch {
+        errorData = { error: response.statusText }
+      }
+      console.error("[v0] API error response:", errorData)
+      throw new Error(errorData.error || `API error: ${response.statusText}`)
+    }
+
+    const blob = await response.blob()
+    console.log("[v0] Success! Blob size:", blob.size)
+    return blob
+  } catch (error) {
+    console.error("[v0] Fetch error:", error)
+    throw error
   }
-
-  return response.blob()
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
