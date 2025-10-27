@@ -18,12 +18,24 @@ import sign from "./api/sign.js"
 
 const app = express()
 
+const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, "") : null
+
+const allowedOrigins = ["https://v0-zenpdf-voice-bot-mm29.vercel.app", "http://localhost:3000", "http://localhost:3001"]
+
+if (frontendUrl) {
+  allowedOrigins.unshift(frontendUrl)
+}
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "*",
+    origin: allowedOrigins,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   }),
 )
+
+app.options("*", cors())
 
 app.use(express.json({ limit: "50mb" }))
 app.use(express.urlencoded({ extended: true, limit: "50mb" }))
@@ -31,6 +43,8 @@ app.use(
   fileUpload({
     limits: { fileSize: 50 * 1024 * 1024 },
     abortOnLimit: true,
+    useTempFiles: true,
+    tempFileDir: "/tmp/",
   }),
 )
 
@@ -55,15 +69,24 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() })
 })
 
-// Error handling
 app.use((err, req, res, next) => {
   console.error("Error:", err)
-  res.status(500).json({ error: err.message })
+  console.error("Error Stack:", err.stack)
+  res.status(500).json({
+    error: err.message,
+    type: err.name,
+    timestamp: new Date().toISOString(),
+  })
+})
+
+app.use((req, res) => {
+  res.status(404).json({ error: "Endpoint not found" })
 })
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
+  console.log(`CORS enabled for: ${process.env.FRONTEND_URL || "all origins"}`)
 })
 
 export default app
