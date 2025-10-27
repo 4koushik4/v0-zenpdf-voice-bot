@@ -3,8 +3,6 @@ export async function callPDFAPI(
   file: File,
   additionalData?: Record<string, string>,
 ): Promise<Blob> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
-
   const formData = new FormData()
   formData.append("pdfFile", file)
 
@@ -14,7 +12,7 @@ export async function callPDFAPI(
     })
   }
 
-  const response = await fetch(`${apiUrl}/api/${operation}`, {
+  const response = await fetch(`/api/${operation}`, {
     method: "POST",
     body: formData,
   })
