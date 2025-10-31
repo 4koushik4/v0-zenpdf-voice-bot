@@ -6,9 +6,10 @@ import { initializeSpeechRecognition } from "@/lib/voice-utils"
 interface VoiceControlsProps {
   isListening: boolean
   onVoiceInput: (transcript: string) => void
+  robotMode?: boolean
 }
 
-export default function VoiceControls({ isListening, onVoiceInput }: VoiceControlsProps) {
+export default function VoiceControls({ isListening, onVoiceInput, robotMode = false }: VoiceControlsProps) {
   const [isActive, setIsActive] = useState(false)
   const [transcript, setTranscript] = useState("")
   const [interimTranscript, setInterimTranscript] = useState("")
@@ -32,29 +33,42 @@ export default function VoiceControls({ isListening, onVoiceInput }: VoiceContro
 
     recognitionRef.current.onresult = (event: any) => {
       let interim = ""
+      let final = ""
+
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcriptPart = event.results[i][0].transcript
         if (event.results[i].isFinal) {
-          setTranscript((prev) => prev + transcriptPart)
+          final += transcriptPart
         } else {
           interim += transcriptPart
         }
       }
+
+      setTranscript((prev) => prev + final)
       setInterimTranscript(interim)
     }
 
     recognitionRef.current.onend = () => {
       setIsActive(false)
       const finalTranscript = transcript + interimTranscript
-      if (finalTranscript.trim()) {
+
+      if (robotMode && finalTranscript.trim()) {
+        onVoiceInput(finalTranscript)
+        setTimeout(() => {
+          if (recognitionRef.current) {
+            recognitionRef.current.start()
+          }
+        }, 500)
+      } else if (finalTranscript.trim()) {
         onVoiceInput(finalTranscript)
       }
+
       setTranscript("")
       setInterimTranscript("")
     }
 
     recognitionRef.current.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error)
+      console.error("[v0] Speech recognition error:", event.error)
       setIsActive(false)
     }
 
@@ -63,7 +77,7 @@ export default function VoiceControls({ isListening, onVoiceInput }: VoiceContro
         recognitionRef.current.abort()
       }
     }
-  }, [transcript, interimTranscript, onVoiceInput])
+  }, [transcript, interimTranscript, onVoiceInput, robotMode])
 
   const toggleListening = () => {
     if (!recognitionRef.current) return
@@ -76,36 +90,46 @@ export default function VoiceControls({ isListening, onVoiceInput }: VoiceContro
   }
 
   if (!isSupported) {
-    return <div className="text-xs text-slate-400">Voice control not supported in your browser</div>
+    return <div className="text-xs text-muted-foreground">Voice control not supported in your browser</div>
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col items-center gap-4">
       <button
         onClick={toggleListening}
-        className={`p-2 rounded-full transition ${
+        className={`p-4 rounded-full transition-all ${
           isActive
-            ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
-            : "bg-indigo-600 hover:bg-indigo-700 text-white"
+            ? "bg-red-500 hover:bg-red-600 text-white animate-pulse shadow-lg shadow-red-500/50"
+            : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/50"
         }`}
         title={isActive ? "Stop listening" : "Start listening"}
       >
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
           <path d="M10 2a3 3 0 00-3 3v6a3 3 0 006 0V5a3 3 0 00-3-3z" />
           <path d="M3 8.5a7 7 0 1114 0H3z" />
         </svg>
       </button>
+
       {isActive && (
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-slate-400">Listening...</span>
-          <div className="flex gap-0.5">
-            <div className="w-1 h-3 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-            <div className="w-1 h-3 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-            <div className="w-1 h-3 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+        <div className="flex flex-col items-center gap-2">
+          <div className="text-sm text-muted-foreground font-medium">Listening...</div>
+          <div className="flex gap-1">
+            <div className="w-1.5 h-4 bg-gradient-to-t from-indigo-500 to-pink-500 rounded-full animate-pulse" />
+            <div
+              className="w-1.5 h-6 bg-gradient-to-t from-indigo-500 to-pink-500 rounded-full animate-pulse"
+              style={{ animationDelay: "0.1s" }}
+            />
+            <div
+              className="w-1.5 h-4 bg-gradient-to-t from-indigo-500 to-pink-500 rounded-full animate-pulse"
+              style={{ animationDelay: "0.2s" }}
+            />
           </div>
         </div>
       )}
-      {interimTranscript && <span className="text-xs text-slate-400 italic">{interimTranscript}</span>}
+
+      {interimTranscript && (
+        <p className="text-sm text-muted-foreground italic text-center max-w-xs">{interimTranscript}</p>
+      )}
     </div>
   )
 }

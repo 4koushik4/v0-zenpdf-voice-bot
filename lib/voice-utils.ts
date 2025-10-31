@@ -21,12 +21,13 @@ export function speakText(text: string, onEnd?: () => void): void {
   window.speechSynthesis.cancel()
 
   const utterance = new SpeechSynthesisUtterance(text)
-  utterance.rate = 1
-  utterance.pitch = 1
+  utterance.rate = 0.95
+  utterance.pitch = 1.1
   utterance.volume = 1
 
   if (onEnd) {
     utterance.onend = onEnd
+    utterance.onerror = onEnd
   }
 
   window.speechSynthesis.speak(utterance)
